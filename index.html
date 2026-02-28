@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CardPulse — Sports Card Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0b; --surface: #111114; --surface2: #18181d; --border: #222228;
+    --accent: #f0c040; --accent2: #e05c2a; --red: #e03a3a; --green: #2ae08a;
+    --text: #e8e8f0; --muted: #6b6b80; --card-w: 280px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; overflow-x: hidden; }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(240,192,64,0.07) 0%, transparent 60%);
+    pointer-events: none; z-index: 0;
+  }
+
+  /* HEADER */
+  header {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(10,10,11,0.92); backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 64px;
+  }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 2px; color: var(--accent); display: flex; align-items: center; gap: 10px; }
+  .logo-dot { width: 8px; height: 8px; background: var(--accent2); border-radius: 50%; animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.7)} }
+  .header-right { display: flex; align-items: center; gap: 20px; }
+  .live-badge { display: flex; align-items: center; gap: 6px; color: var(--green); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-family: 'DM Mono', monospace; }
+  .live-dot { width: 6px; height: 6px; background: var(--green); border-radius: 50%; animation: pulse 1s ease-in-out infinite; }
+  #last-updated { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+  .env-pill { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .env-pill select { background: transparent; border: none; color: var(--accent); font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; outline: none; }
+
+  /* STATUS BANNER */
+  #status-banner { position: relative; z-index: 1; padding: 10px 32px; font-family: 'DM Mono', monospace; font-size: 12px; display: none; align-items: center; gap: 10px; }
+  #status-banner.error   { background: rgba(224,58,58,0.1);  border-bottom: 1px solid rgba(224,58,58,0.3);  color: var(--red);   display: flex; }
+  #status-banner.info    { background: rgba(240,192,64,0.08); border-bottom: 1px solid rgba(240,192,64,0.2); color: var(--accent);display: flex; }
+  #status-banner.success { background: rgba(42,224,138,0.08); border-bottom: 1px solid rgba(42,224,138,0.2); color: var(--green); display: flex; }
+
+  /* CONTROLS */
+  .controls { position: relative; z-index: 1; padding: 20px 32px 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .search-wrap { position: relative; flex: 1; max-width: 380px; }
+  .search-wrap input { width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 16px 10px 40px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s; }
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-wrap input::placeholder { color: var(--muted); }
+  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+  .filter-group { display: flex; align-items: center; gap: 8px; }
+  .filter-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-family: 'DM Mono', monospace; white-space: nowrap; }
+  select { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 9px 14px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; outline: none; }
+  .sort-btn { display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 9px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; transition: all 0.2s; white-space: nowrap; font-family: 'DM Sans', sans-serif; }
+  .sort-btn.active { border-color: var(--accent); background: rgba(240,192,64,0.08); color: var(--accent); }
+  .refresh-btn { background: var(--accent); color: #000; border: none; padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: opacity 0.2s; white-space: nowrap; }
+  .refresh-btn:hover { opacity: 0.85; }
+  .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* STATS BAR */
+  .stats-bar { position: relative; z-index: 1; padding: 16px 32px; display: flex; gap: 32px; border-bottom: 1px solid var(--border); margin-top: 16px; flex-wrap: wrap; }
+  .stat { display: flex; flex-direction: column; gap: 2px; }
+  .stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 1px; color: var(--accent); line-height: 1; }
+  .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-family: 'DM Mono', monospace; }
+  .stat-divider { width: 1px; background: var(--border); align-self: stretch; }
+
+  /* GRID */
+  .grid-wrap { position: relative; z-index: 1; padding: 24px 32px 48px; }
+  .section-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; display: flex; align-items: center; gap: 12px; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--card-w), 1fr)); gap: 16px; }
+
+  /* CARD */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; cursor: pointer; transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s; animation: card-in 0.4s ease both; position: relative; }
+  .card:hover { transform: translateY(-3px); border-color: rgba(240,192,64,0.4); box-shadow: 0 12px 40px rgba(0,0,0,0.4); }
+  @keyframes card-in { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+  .card.urgent { border-color: rgba(224,60,42,0.5); }
+  .card.urgent::before { content:''; position:absolute; top:0;left:0;right:0; height:2px; background:linear-gradient(90deg,var(--accent2),var(--red)); }
+  .card.hot { border-color: rgba(240,192,64,0.3); }
+  .card.hot::before { content:''; position:absolute; top:0;left:0;right:0; height:2px; background:linear-gradient(90deg,var(--accent),#ff9900); }
+
+  .card-img-wrap { position: relative; width: 100%; aspect-ratio: 4/3; overflow: hidden; background: var(--surface2); }
+  .card-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .card-img-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 52px; background: linear-gradient(135deg, var(--surface2) 0%, #1a1a22 100%); }
+  .img-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.7) 100%); }
+  .timer-badge { position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.85); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 4px 8px; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 5px; backdrop-filter: blur(8px); }
+  .timer-badge.ending-soon  { color: var(--red); }
+  .timer-badge.ending-today { color: var(--accent); }
+  .timer-badge.ending-normal{ color: var(--text); }
+
+  .card-body { padding: 12px 14px 14px; }
+  .card-title { font-size: 13px; font-weight: 500; line-height: 1.4; color: var(--text); margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; transition: color 0.2s; }
+  .card:hover .card-title { color: var(--accent); }
+  .card-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .card-price { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; color: var(--accent); line-height: 1; }
+  .card-bids { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .card-bids span { color: var(--text); font-weight: 500; }
+  .card-stats { display: flex; gap: 8px; }
+  .stat-pill { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; display: flex; align-items: center; gap: 5px; font-size: 11px; font-family: 'DM Mono', monospace; min-width: 0; }
+  .stat-pill .pill-icon { font-size: 11px; flex-shrink: 0; }
+  .stat-pill .pill-val { font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stat-pill .pill-label { color: var(--muted); font-size: 10px; flex-shrink: 0; }
+  .watches-pill { border-color: rgba(240,192,64,0.2); }
+  .watches-pill .pill-val { color: var(--accent); }
+  .pill-loading { animation: wink 0.9s ease-in-out infinite; }
+  @keyframes wink { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+  /* SKELETON */
+  .skeleton { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; animation: skel 1.5s ease-in-out infinite; }
+  .skeleton-img { width: 100%; aspect-ratio: 4/3; background: var(--surface2); }
+  .skeleton-body { padding: 12px 14px; }
+  .skeleton-line { height: 12px; background: var(--surface2); border-radius: 4px; margin-bottom: 8px; }
+  .skeleton-line.short { width: 60%; } .skeleton-line.medium { width: 80%; }
+  @keyframes skel { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .empty { grid-column:1/-1; text-align:center; padding:80px 20px; color:var(--muted); font-family:'DM Mono',monospace; font-size:13px; }
+  ::-webkit-scrollbar{width:6px} ::-webkit-scrollbar-track{background:var(--bg)} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><div class="logo-dot"></div>CardPulse</div>
+  <div class="header-right">
+    <div class="env-pill">ENV: <select id="env-select" onchange="switchEnv()"><option value="sandbox">SANDBOX</option><option value="production">PRODUCTION</option></select></div>
+    <div class="live-badge"><div class="live-dot"></div> Live</div>
+    <div id="last-updated">—</div>
+  </div>
+</header>
+
+<div id="status-banner"></div>
+
+<div class="controls">
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="search" placeholder="Search player, team, set..." oninput="applyFilters()">
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Sort</span>
+    <button class="sort-btn active" id="sort-ending"  onclick="setSort('ending')">⏱ Ending Soonest</button>
+    <button class="sort-btn"        id="sort-watches" onclick="setSort('watches')">👁 Most Watched</button>
+    <button class="sort-btn"        id="sort-bids"    onclick="setSort('bids')">🔥 Most Bids</button>
+    <button class="sort-btn"        id="sort-price"   onclick="setSort('price')">💰 Highest Price</button>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Min Watches</span>
+    <select id="min-watches" onchange="applyFilters()">
+      <option value="0">Any</option>
+      <option value="25">25+</option>
+      <option value="50">50+</option>
+      <option value="100">100+</option>
+      <option value="250">250+</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Min Bids</span>
+    <select id="min-bids" onchange="applyFilters()">
+      <option value="0">Any</option>
+      <option value="5">5+</option>
+      <option value="10">10+</option>
+      <option value="25">25+</option>
+    </select>
+  </div>
+  <button class="refresh-btn" onclick="fetchListings()" id="refresh-btn">↻ Refresh</button>
+</div>
+
+<div class="stats-bar">
+  <div class="stat"><div class="stat-value" id="stat-total">—</div><div class="stat-label">Listings</div></div>
+  <div class="stat-divider"></div>
+  <div class="stat"><div class="stat-value" id="stat-ending">—</div><div class="stat-label">Ending &lt; 1hr</div></div>
+  <div class="stat-divider"></div>
+  <div class="stat"><div class="stat-value" id="stat-watches">—</div><div class="stat-label">Avg Watches</div></div>
+  <div class="stat-divider"></div>
+  <div class="stat"><div class="stat-value" id="stat-bids">—</div><div class="stat-label">Avg Bids</div></div>
+  <div class="stat-divider"></div>
+  <div class="stat"><div class="stat-value" id="stat-top-price">—</div><div class="stat-label">Highest Price</div></div>
+</div>
+
+<div class="grid-wrap">
+  <div class="section-label" id="grid-label">Ending Soonest</div>
+  <div class="grid" id="grid">
+    <div class="skeleton"><div class="skeleton-img"></div><div class="skeleton-body"><div class="skeleton-line medium"></div><div class="skeleton-line short"></div></div></div>
+    <div class="skeleton"><div class="skeleton-img"></div><div class="skeleton-body"><div class="skeleton-line medium"></div><div class="skeleton-line short"></div></div></div>
+    <div class="skeleton"><div class="skeleton-img"></div><div class="skeleton-body"><div class="skeleton-line medium"></div><div class="skeleton-line short"></div></div></div>
+    <div class="skeleton"><div class="skeleton-img"></div><div class="skeleton-body"><div class="skeleton-line medium"></div><div class="skeleton-line short"></div></div></div>
+    <div class="skeleton"><div class="skeleton-img"></div><div class="skeleton-body"><div class="skeleton-line medium"></div><div class="skeleton-line short"></div></div></div>
+    <div class="skeleton"><div class="skeleton-img"></div><div class="skeleton-body"><div class="skeleton-line medium"></div><div class="skeleton-line short"></div></div></div>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const CONFIG = {
+  sandbox: {
+    clientId:     '',  // eBay sandbox App ID
+    clientSecret: '',  // eBay sandbox Cert ID
+    tokenUrl:    'https://api.sandbox.ebay.com/identity/v1/oauth2/token',
+    findingUrl:  'https://svcs.sandbox.ebay.com/services/search/FindingService/v1',
+    tradingUrl:  'https://api.sandbox.ebay.com/ws/api.dll',
+  },
+  production: {
+    clientId:     '',  // eBay production App ID
+    clientSecret: '',  // eBay production Cert ID
+    tokenUrl:    'https://api.ebay.com/identity/v1/oauth2/token',
+    findingUrl:  'https://svcs.ebay.com/services/search/FindingService/v1',
+    tradingUrl:  'https://api.ebay.com/ws/api.dll',
+  }
+};
+
+const SPORTS_CARDS_CATEGORY = '212'; // eBay Sports Cards category
+const TRADING_API_VERSION   = '967';
+const BATCH_SIZE            = 20;    // GetMultipleItems max per call
+
+let currentEnv   = 'sandbox';
+let accessToken  = null;
+let tokenExpiry  = 0;
+let allListings  = [];
+let currentSort  = 'ending';
+
+function cfg() { return CONFIG[currentEnv]; }
+
+function switchEnv() {
+  currentEnv  = document.getElementById('env-select').value;
+  accessToken = null;
+  tokenExpiry = 0;
+  fetchListings();
+}
+
+// ─── STATUS ───────────────────────────────────────────────────────────────────
+function showStatus(msg, type = 'info') {
+  const b = document.getElementById('status-banner');
+  b.textContent = msg;
+  b.className = type;
+}
+function hideStatus() { document.getElementById('status-banner').className = ''; }
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+async function getToken() {
+  if (accessToken && Date.now() < tokenExpiry) return accessToken;
+  const { clientId, clientSecret, tokenUrl } = cfg();
+  const resp = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${btoa(clientId + ':' + clientSecret)}`,
+      'Content-Type':  'application/x-www-form-urlencoded',
+    },
+    body: 'grant_type=client_credentials&scope=https://api.ebay.com/oauth/api_scope'
+  });
+  if (!resp.ok) throw new Error(`Auth failed (${resp.status}): ${await resp.text()}`);
+  const d = await resp.json();
+  accessToken = d.access_token;
+  tokenExpiry = Date.now() + (d.expires_in - 60) * 1000;
+  return accessToken;
+}
+
+// ─── FINDING API ──────────────────────────────────────────────────────────────
+async function findItemsEndingSoon() {
+  const { clientId, findingUrl } = cfg();
+  const keyword = document.getElementById('search').value.trim() || 'sports card rookie';
+
+  const params = new URLSearchParams({
+    'OPERATION-NAME':              'findItemsAdvanced',
+    'SERVICE-VERSION':             '1.0.0',
+    'SECURITY-APPNAME':            clientId,
+    'RESPONSE-DATA-FORMAT':        'JSON',
+    'REST-PAYLOAD':                '',
+    'keywords':                    keyword,
+    'categoryId':                  SPORTS_CARDS_CATEGORY,
+    'sortOrder':                   'EndTimeSoonest',
+    'paginationInput.entriesPerPage': '48',
+    'itemFilter(0).name':          'ListingType',
+    'itemFilter(0).value':         'Auction',
+    'outputSelector(0)':           'PictureURLLarge',
+    'outputSelector(1)':           'SellerInfo',
+  });
+
+  const resp = await fetch(`${findingUrl}?${params}`);
+  if (!resp.ok) throw new Error(`Finding API error (${resp.status})`);
+
+  const data = await resp.json();
+  const root = data?.findItemsAdvancedResponse?.[0];
+  const ack  = root?.ack?.[0];
+  if (ack !== 'Success' && ack !== 'Warning') {
+    const msg = root?.errorMessage?.[0]?.error?.[0]?.message?.[0];
+    throw new Error(msg || `Finding API returned: ${ack}`);
+  }
+
+  const items = root?.searchResult?.[0]?.item || [];
+  return items.map(item => {
+    const endTime = new Date(item.listingInfo?.[0]?.endTime?.[0]);
+    const diffMin = Math.max(0, Math.round((endTime - Date.now()) / 60000));
+    return {
+      id:             item.itemId?.[0],
+      title:          item.title?.[0] || 'Untitled',
+      price:          parseFloat(item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || '0'),
+      bids:           parseInt(item.sellingStatus?.[0]?.bidCount?.[0] || '0'),
+      watches:        null,        // populated by Trading API
+      watchesLoading: true,
+      endMin:         diffMin,
+      img:            item.galleryURL?.[0] || item.pictureURLLarge?.[0] || null,
+      url:            item.viewItemURL?.[0] || '#',
+      condition:      item.condition?.[0]?.conditionDisplayName?.[0] || '',
+    };
+  });
+}
+
+// ─── TRADING API — GetMultipleItems (watch count) ────────────────────────────
+// Batches 20 items per call, updates allListings in-place, re-renders after
+// each batch so watch counts appear progressively without blocking the UI.
+async function enrichWithWatchCounts(listings) {
+  const token = await getToken();
+  const { tradingUrl, clientId } = cfg();
+
+  for (let i = 0; i < listings.length; i += BATCH_SIZE) {
+    const batch   = listings.slice(i, i + BATCH_SIZE);
+    const idList  = batch.map(l => `<ItemID>${l.id}</ItemID>`).join('');
+    const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+    const total    = Math.ceil(listings.length / BATCH_SIZE);
+
+    showStatus(`👁 Loading watch counts… batch ${batchNum}/${total}`, 'info');
+
+    try {
+      const resp = await fetch(tradingUrl, {
+        method: 'POST',
+        headers: {
+          'X-EBAY-API-SITEID':               '0',
+          'X-EBAY-API-COMPATIBILITY-LEVEL':  TRADING_API_VERSION,
+          'X-EBAY-API-CALL-NAME':            'GetMultipleItems',
+          'X-EBAY-API-IAF-TOKEN':            token,
+          'Content-Type':                    'text/xml',
+        },
+        body: `<?xml version="1.0" encoding="utf-8"?>
+<GetMultipleItemsRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+  ${idList}
+  <IncludeSelector>Details</IncludeSelector>
+</GetMultipleItemsRequest>`
+      });
+
+      if (!resp.ok) {
+        console.warn(`Watch count batch ${batchNum} HTTP error: ${resp.status}`);
+        batch.forEach(l => { l.watchesLoading = false; });
+        applyFilters();
+        continue;
+      }
+
+      const xml = await resp.text();
+      const doc = new DOMParser().parseFromString(xml, 'text/xml');
+
+      // Check for API-level errors
+      const ack = doc.querySelector('Ack')?.textContent;
+      if (ack === 'Failure') {
+        const errMsg = doc.querySelector('ShortMessage')?.textContent;
+        console.warn(`Watch count batch ${batchNum} API error: ${errMsg}`);
+        batch.forEach(l => { l.watchesLoading = false; });
+        applyFilters();
+        continue;
+      }
+
+      // Parse each <Item> node
+      doc.querySelectorAll('Item').forEach(node => {
+        const itemId     = node.querySelector('ItemID')?.textContent?.trim();
+        const watchCount = node.querySelector('WatchCount')?.textContent?.trim();
+        const listing    = allListings.find(l => l.id === itemId);
+        if (listing) {
+          listing.watches        = watchCount !== undefined ? parseInt(watchCount) : null;
+          listing.watchesLoading = false;
+        }
+      });
+
+    } catch(err) {
+      console.warn(`Watch count batch ${batchNum} fetch error:`, err);
+    }
+
+    // Mark any stragglers in the batch as done
+    batch.forEach(l => { if (l.watchesLoading) l.watchesLoading = false; });
+
+    // Re-render after every batch — watch counts appear progressively
+    applyFilters();
+  }
+
+  const got = listings.filter(l => l.watches !== null).length;
+  showStatus(`✓ Watch counts loaded for ${got}/${listings.length} listings`, 'success');
+  setTimeout(hideStatus, 3500);
+}
+
+// ─── MAIN FETCH ORCHESTRATOR ─────────────────────────────────────────────────
+async function fetchListings() {
+  const btn = document.getElementById('refresh-btn');
+  btn.disabled = true;
+  btn.textContent = '↻ Loading...';
+  showStatus('Authenticating with eBay...', 'info');
+
+  try {
+    await getToken();
+    showStatus('Fetching listings from eBay Finding API...', 'info');
+    allListings = await findItemsEndingSoon();
+
+    if (allListings.length === 0) {
+      showStatus('⚠ No auction listings found — sandbox data is sparse. Switch to Production for live listings.', 'info');
+      loadMockFallback();
+    } else {
+      document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+      showStatus(`✓ ${allListings.length} listings loaded — fetching watch counts…`, 'success');
+      applyFilters(); // Show listings immediately, watches show as "…"
+
+      // Non-blocking: enrich with watch counts in background
+      enrichWithWatchCounts(allListings);
+    }
+  } catch(err) {
+    console.error(err);
+    showStatus(`⚠ ${err.message} — showing demo data`, 'error');
+    loadMockFallback();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↻ Refresh';
+  }
+}
+
+// ─── MOCK FALLBACK (sandbox has sparse data) ──────────────────────────────────
+function loadMockFallback() {
+  allListings = [
+    { id:'1', title:'2023 Topps Chrome PSA 10 Shohei Ohtani Refractor Auto /50',     price:1250,  bids:34,  watches:847,  watchesLoading:false, endMin:12,  img:null, url:'#', condition:'Graded' },
+    { id:'2', title:'2003-04 Topps Chrome LeBron James RC PSA 9 Rookie',             price:3800,  bids:67,  watches:1243, watchesLoading:false, endMin:28,  img:null, url:'#', condition:'Graded' },
+    { id:'3', title:'2000 Topps Tom Brady Rookie RC PSA 8 Patriots #311',            price:4200,  bids:89,  watches:2104, watchesLoading:false, endMin:45,  img:null, url:'#', condition:'Graded' },
+    { id:'4', title:'2021 Bowman Chrome Wander Franco Auto /99 BGS 9.5',             price:340,   bids:18,  watches:412,  watchesLoading:false, endMin:67,  img:null, url:'#', condition:'Graded' },
+    { id:'5', title:'1986-87 Fleer Michael Jordan Sticker #8 PSA 9 Mint HOF',        price:2100,  bids:44,  watches:931,  watchesLoading:false, endMin:73,  img:null, url:'#', condition:'Graded' },
+    { id:'6', title:'2022 Panini Prizm Victor Wembanyama RC Auto RPA /25 BGS 10',    price:8500,  bids:112, watches:3847, watchesLoading:false, endMin:95,  img:null, url:'#', condition:'Graded' },
+    { id:'7', title:'2020 Topps Update Luis Robert RC Auto /75 PSA 10 White Sox',    price:425,   bids:22,  watches:287,  watchesLoading:false, endMin:118, img:null, url:'#', condition:'Graded' },
+    { id:'8', title:'2018 Panini National Treasures Patrick Mahomes RPA /99 PSA 10', price:5600,  bids:76,  watches:1876, watchesLoading:false, endMin:142, img:null, url:'#', condition:'Graded' },
+    { id:'9', title:'1979-80 O-Pee-Chee Wayne Gretzky Rookie #18 PSA 7 HOF',        price:3100,  bids:54,  watches:721,  watchesLoading:false, endMin:165, img:null, url:'#', condition:'Graded' },
+    { id:'10',title:'1952 Topps Mickey Mantle #311 PSA 4 VG-EX Yankees HOF Icon',   price:18500, bids:143, watches:5234, watchesLoading:false, endMin:347, img:null, url:'#', condition:'Graded' },
+    { id:'11',title:'2022 Bowman Chrome Prospect Julio Rodriguez /99 BGS 9.5',      price:190,   bids:14,  watches:203,  watchesLoading:false, endMin:189, img:null, url:'#', condition:'Graded' },
+    { id:'12',title:'2021 Upper Deck Connor McDavid Young Guns RC PSA 10 Oilers',   price:950,   bids:29,  watches:445,  watchesLoading:false, endMin:234, img:null, url:'#', condition:'Graded' },
+  ];
+  document.getElementById('last-updated').textContent = 'Demo data';
+  applyFilters();
+}
+
+// ─── SORT / FILTER ────────────────────────────────────────────────────────────
+function setSort(s) {
+  currentSort = s;
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('sort-' + s).classList.add('active');
+  document.getElementById('grid-label').textContent = {
+    ending: 'Ending Soonest', watches: 'Most Watched',
+    bids:   'Most Bids',      price:   'Highest Price'
+  }[s];
+  applyFilters();
+}
+
+function applyFilters() {
+  const q          = document.getElementById('search').value.toLowerCase();
+  const minBids    = parseInt(document.getElementById('min-bids').value);
+  const minWatches = parseInt(document.getElementById('min-watches').value);
+
+  let filtered = allListings.filter(c => {
+    if (q && !c.title.toLowerCase().includes(q)) return false;
+    if (c.bids < minBids) return false;
+    // Only apply watch filter once data has loaded for that item
+    if (minWatches > 0 && !c.watchesLoading && c.watches !== null && c.watches < minWatches) return false;
+    return true;
+  });
+
+  filtered.sort((a, b) => {
+    if (currentSort === 'ending') return a.endMin - b.endMin;
+    if (currentSort === 'watches') {
+      // Loading items sink to bottom; nulls below loaded
+      if (a.watchesLoading !== b.watchesLoading) return a.watchesLoading ? 1 : -1;
+      if ((a.watches === null) !== (b.watches === null)) return a.watches === null ? 1 : -1;
+      return (b.watches || 0) - (a.watches || 0);
+    }
+    if (currentSort === 'bids')  return b.bids  - a.bids;
+    if (currentSort === 'price') return b.price - a.price;
+    return 0;
+  });
+
+  updateStats(filtered);
+  renderCards(filtered);
+}
+
+// ─── STATS BAR ────────────────────────────────────────────────────────────────
+function updateStats(items) {
+  document.getElementById('stat-total').textContent  = items.length;
+  document.getElementById('stat-ending').textContent = items.filter(c => c.endMin <= 60).length;
+
+  const withW = items.filter(c => c.watches !== null);
+  const avgW  = withW.length
+    ? Math.round(withW.reduce((s, c) => s + c.watches, 0) / withW.length)
+    : null;
+  document.getElementById('stat-watches').textContent = avgW !== null ? avgW.toLocaleString() : '…';
+
+  const avgB = items.length ? Math.round(items.reduce((s,c) => s + c.bids, 0) / items.length) : 0;
+  document.getElementById('stat-bids').textContent = avgB;
+
+  const maxP = items.length ? Math.max(...items.map(c => c.price)) : 0;
+  document.getElementById('stat-top-price').textContent = maxP > 0 ? '$' + maxP.toLocaleString() : '—';
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function formatTime(m) {
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60), rm = m % 60;
+  if (h < 24) return rm ? `${h}h ${rm}m` : `${h}h`;
+  const d = Math.floor(h / 24), rh = h % 24;
+  return rh ? `${d}d ${rh}h` : `${d}d`;
+}
+
+function renderCards(items) {
+  const grid = document.getElementById('grid');
+  if (!items.length) {
+    grid.innerHTML = '<div class="empty">No listings match your filters</div>';
+    return;
+  }
+
+  grid.innerHTML = items.map((c, i) => {
+    // Card urgency class: red border if ending soon + active bidding, gold if high watches
+    const urgent = c.endMin <= 60 && c.bids > 10;
+    const hot    = !urgent && ((c.watches !== null && c.watches > 150) || c.bids > 30);
+    const cls    = urgent ? 'urgent' : hot ? 'hot' : '';
+
+    const timerCls = c.endMin <= 60 ? 'ending-soon' : c.endMin <= 480 ? 'ending-today' : 'ending-normal';
+    const timerIcon = c.endMin <= 60 ? '🔴' : c.endMin <= 480 ? '🟡' : '🟢';
+
+    const imgHtml = c.img
+      ? `<img src="${c.img}" alt="" onerror="this.parentElement.innerHTML='<div class=card-img-placeholder>🃏</div>'">`
+      : `<div class="card-img-placeholder">🃏</div>`;
+
+    // Watch count: show "…" (pulsing) while loading, number once resolved, "—" if unavailable
+    let wVal, wCls;
+    if (c.watchesLoading)       { wVal = '…'; wCls = 'pill-loading'; }
+    else if (c.watches !== null){ wVal = c.watches.toLocaleString(); wCls = ''; }
+    else                        { wVal = '—'; wCls = ''; }
+
+    const watchHtml = `
+      <div class="stat-pill watches-pill">
+        <span class="pill-icon">👁</span>
+        <span class="pill-val ${wCls}">${wVal}</span>
+        <span class="pill-label">watches</span>
+      </div>`;
+
+    return `
+      <div class="card ${cls}" onclick="window.open('${c.url}','_blank')" style="animation-delay:${i * 0.04}s">
+        <div class="card-img-wrap">
+          ${imgHtml}
+          <div class="img-overlay"></div>
+          <div class="timer-badge ${timerCls}">${timerIcon} ${formatTime(c.endMin)}</div>
+        </div>
+        <div class="card-body">
+          <div class="card-title">${c.title}</div>
+          <div class="card-meta">
+            <div class="card-price">$${c.price.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
+            <div class="card-bids"><span>${c.bids}</span> bid${c.bids !== 1 ? 's' : ''}</div>
+          </div>
+          <div class="card-stats">
+            ${watchHtml}
+            <div class="stat-pill">
+              <span class="pill-icon">🏷</span>
+              <span class="pill-val">${c.condition || '—'}</span>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+fetchListings();
+setInterval(fetchListings, 5 * 60 * 1000); // auto-refresh every 5 min
+</script>
+</body>
+</html>
