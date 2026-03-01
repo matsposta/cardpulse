@@ -191,6 +191,13 @@
 </div>
 
 <script>
+// Backend API: set your Railway (or other) URL for production; leave empty if not used.
+var PRODUCTION_API_BASE = 'https://cardpulse-production.up.railway.app';
+(function(){
+  var h=window.location.hostname, p=window.location.port;
+  if(p==='8000'&&(h==='127.0.0.1'||h==='localhost')) window.API_BASE='/api';
+  else if(PRODUCTION_API_BASE) window.API_BASE=PRODUCTION_API_BASE;
+})();
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 // Get credentials: https://developer.ebay.com → My Account → Application Keys
 // Sandbox keys work immediately; Production requires going through approval.
@@ -388,12 +395,32 @@ async function enrichWithWatchCounts(listings) {
 }
 
 // ─── MAIN FETCH ORCHESTRATOR ─────────────────────────────────────────────────
+// When API_BASE is set (e.g. '/api'), use backend instead of calling eBay from the browser.
 async function fetchListings() {
   const btn = document.getElementById('refresh-btn');
   btn.disabled = true;
   btn.textContent = '↻ Loading...';
+  const keyword = document.getElementById('search').value.trim() || 'sports card rookie';
+  if (typeof API_BASE !== 'undefined' && API_BASE) {
+    try {
+      showStatus('Fetching listings…', 'info');
+      const r = await fetch(API_BASE + '/listings?keyword=' + encodeURIComponent(keyword));
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || r.statusText);
+      allListings = data.listings || [];
+      document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+      showStatus(allListings.length ? '✓ ' + allListings.length + ' listings loaded' : '⚠ No listings found', allListings.length ? 'success' : 'info');
+      applyFilters();
+    } catch (e) {
+      showStatus('⚠ ' + (e.message || 'API error') + ' — showing demo data', 'error');
+      loadMockFallback();
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '↻ Refresh';
+    }
+    return;
+  }
   showStatus('Authenticating with eBay...', 'info');
-
   try {
     await getToken();
     showStatus('Fetching listings from eBay Finding API...', 'info');
