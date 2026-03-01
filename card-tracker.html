@@ -192,17 +192,19 @@
 
 <script>
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
+// Get credentials: https://developer.ebay.com → My Account → Application Keys
+// Sandbox keys work immediately; Production requires going through approval.
 const CONFIG = {
   sandbox: {
-    clientId:     '',  // eBay sandbox App ID — add locally or use Production
-    clientSecret: '',  // eBay sandbox Cert ID — add locally or use Production
+    clientId:     '',  // App ID (Client ID) from eBay Developer — Sandbox
+    clientSecret: '',  // Cert ID (Client Secret) from eBay Developer — Sandbox
     tokenUrl:    'https://api.sandbox.ebay.com/identity/v1/oauth2/token',
     findingUrl:  'https://svcs.sandbox.ebay.com/services/search/FindingService/v1',
     tradingUrl:  'https://api.sandbox.ebay.com/ws/api.dll',
   },
   production: {
-    clientId:     '',   // paste production App ID here
-    clientSecret: '',   // paste production Cert ID here
+    clientId:     '',  // Add your eBay Production App ID here
+    clientSecret: '',  // Add your eBay Production Cert ID here
     tokenUrl:    'https://api.ebay.com/identity/v1/oauth2/token',
     findingUrl:  'https://svcs.ebay.com/services/search/FindingService/v1',
     tradingUrl:  'https://api.ebay.com/ws/api.dll',
